@@ -97,7 +97,7 @@ By default, all of your existing RevealUptime probes will be analyzed. To select
 In the following example, the data from the probe with id of '9876543210987654321' the past 5 days is exported and analyzed.
 
 ```ruby
-ruby up_and_responsetime.rb '1234567890123456' -o 'sysdata-20121001' -u '9876543210987654321'
+ruby up_and_responsetime.rb '1234567890123456' -o 'probedata-20121001' -u '9876543210987654321'
 ```
 
 ### Sample Size
@@ -106,14 +106,14 @@ up_and_responsetime.rb will default to the highest resolution possible. To speed
 In the following example, the data from the past 5 days is exported and analyzed as a series of 60 second samples
 
 ```ruby
-ruby up_and_responsetime.rb '1234567890123456' -o 'sysdata-20121001' -s 60
+ruby up_and_responsetime.rb '1234567890123456' -o 'probedata-20121001' -s 60
 ```
 
 ### Time Interval
 Specify the interval over which to export data. The default (no option specified) is to export the data from the previous 5 days. To specify exporting and analyzing data from the previous 5 days, use the '-i' option:
 
 ```ruby
-ruby up_and_responsetime.rb '1234567890123456' -o 'sysdata-20121001' -i 'last1d'
+ruby up_and_responsetime.rb '1234567890123456' -o 'probedata-20121001' -i 'last1d'
 ```
 
 ### Verbosity
