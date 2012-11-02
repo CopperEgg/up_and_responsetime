@@ -28,12 +28,14 @@ This ruby script and associated library scripts are based on :
 * The CopperEgg API
 * Typhoeus, which runs HTTP requests in parallel while cleanly encapsulating libcurl handling logic.
 * Typhoeus/ethon, a very simple libcurl wrapper.
+* Axlsx, an Office Open XML Spreadsheet generator for the Ruby programming.
 
 All development and testing to date has been done with ruby-1.9.3-p194 and Typhoeus (0.5.0.rc).
 
 * [CopperEgg API](http://dev.copperegg.com/)
 * [typhoeus](https://github.com/typhoeus/typhoeus)
 * [typhoeus/ethon](https://github.com/typhoeus/ethon)
+* [axlsx](https://github.com/randym/axlsx)
 
 ## Installation
 
@@ -50,8 +52,6 @@ bundle install
 ```
 
 ## Usage
-
-ruby up_and_responsetime.rb 3Kz4RsZoswHnz012 -o ./testxls  -u 4ff6010f2ca1fc1bd30000fd -i 'last5d' -s 60
 
 ```ruby
 ruby up_and_responsetime.rb APIKEY [options]
