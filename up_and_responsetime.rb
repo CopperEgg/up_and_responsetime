@@ -285,7 +285,7 @@ def probesamples_tocsv(_apikey, _id, _probename, _freq, _keys, ts, te, ss)
         while rowind <=row.length
           if row[rowind]!= nil && row[rowind] != ""
             havesomething = 1
-            if row[rowind] == 0
+            if row[rowind] < 100       # FIXME ... debug ... trying < 100; was == 0
               rslt=rslt+1
              end
           end
@@ -320,17 +320,18 @@ def probesamples_tocsv(_apikey, _id, _probename, _freq, _keys, ts, te, ss)
 
     #puts "Calculating Max Downtime. Number of samples is "+allrow_index.to_s+"\n"
     while rowind < allrow_index
-      if rowsignore[rowind] = 0 && allrows[rowind] > 0     # FIXME
+      if rowsignore[rowind] == 0 && allrows[rowind] > 0     # FIXME
         totaldowntime = totaldowntime + 1
         cur_contiguous = cur_contiguous+1
         if cur_contiguous >  max_contiguous
           max_contiguous = cur_contiguous
         end
-      elsif rowsignore[rowind] = 0 && allrows[rowind] == 0
+      elsif rowsignore[rowind] == 0 && allrows[rowind] == 0
          cur_contiguous = 0
       end
       rowind  = rowind +1
     end
+
     ttime = (allrow_index*$samplesize).to_f
     tdtime = (totaldowntime*$samplesize).to_f
     uptime = ((ttime-tdtime)/ttime).to_f
@@ -356,9 +357,9 @@ def probesamples_tocsv(_apikey, _id, _probename, _freq, _keys, ts, te, ss)
     wb.add_worksheet(:name => "Uptime Summary") do |sheet2|
       sheet2.add_row ["Metric", "In Hours", "In Minutes", "In Seconds"]
       sheet2.add_row ["Length of period", (ttime/3600).to_s,  (ttime/60).to_s, ttime.to_s]
-      sheet2.add_row ["Total Downtime during this period", (tdtime/3600).to_s, (tdtime/60).to_s, tdtime.to_s ]
-      sheet2.add_row ["Longest Time Down during this period, in minutes", ((max_contiguous*$samplesize)/3600).to_s, ((max_contiguous*$samplesize)/60).to_s, ((max_contiguous*$samplesize)).to_s]
-      sheet2.add_row ["Uptime over this period, in minutes", stuff.to_s]
+      sheet2.add_row ["Total Downtime during this period", (tdtime/3600).round(3).to_s, (tdtime/60).round(3).to_s, tdtime.to_s ]
+      sheet2.add_row ["Longest Time Down during this period", ((max_contiguous*$samplesize)/3600).to_s, ((max_contiguous*$samplesize)/60).to_s, ((max_contiguous*$samplesize)).to_s]
+      sheet2.add_row ["Uptime percentage over this period", stuff.to_s]
     end  # of sheet2
   end  # of sheet1
 
@@ -631,11 +632,8 @@ if options != nil
 
   ss = options.sample_size_override
 
-
-
   $days = options.shave
 
-  $samplesize = ss
   $monitorthis = options.monitor
   allprobes = Array.new
   allprobes = GetProbes.all($APIKEY)
@@ -681,6 +679,8 @@ if options != nil
           $dplaces = 3
         end
       end
+      $samplesize = ss
+
       probesamples_tocsv($APIKEY, this_probe["id"].to_s, this_probe["probe_desc"].to_s , this_probe["frequency"],"s_l,s_u", ts, te, ss)
       puts "\nFinished Probe "+this_probe["probe_desc"].to_s+"\n"
       ctr = ctr + 1
