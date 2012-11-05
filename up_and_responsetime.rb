@@ -601,7 +601,7 @@ end
 # This is the main portion of the probedata_csvexport.rb utility
 #
 
-options = ExportOptions.parse(ARGV,"Usage: probedata_csvexport.rb APIKEY [options]","probes")
+options = ExportOptions.parse(ARGV,"Usage: ruby up_and_responsetime.rb APIKEY [options]","probes")
 if options != nil
   if $verbose == true
     pp options
