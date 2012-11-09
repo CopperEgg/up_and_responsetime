@@ -9,6 +9,7 @@
 require 'rubygems'
 require 'typhoeus'
 require 'json'
+require 'ethon'
 
 
 $tmpdebug = false
@@ -46,9 +47,9 @@ def get1hrprobesamples(_apikey, _id, _probename, _keys, ts, te, ss)
     end
     while retries > 0
       if $tmpdebug == true
-        easy = Ethon::Easy.new(url: tmpurl, followlocation: true, verbose: true, ssl_verifypeer: 0, headers: {Accept: "json"}, timeout: 10000)
+        easy = Ethon::Easy.new(url: tmpurl, followlocation: true, forbid_reuse: true, verbose: true, ssl_verifypeer: 0, headers: {Accept: "json"}, timeout: 10000)
       else
-        easy = Ethon::Easy.new(url: tmpurl, followlocation: true, verbose: false, ssl_verifypeer: 0, headers: {Accept: "json"}, timeout: 10000)
+        easy = Ethon::Easy.new(url: tmpurl, followlocation: true, forbid_reuse: true, verbose: false, ssl_verifypeer: 0, headers: {Accept: "json"}, timeout: 10000)
       end
       easy.prepare
       easy.perform

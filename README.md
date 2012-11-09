@@ -7,7 +7,7 @@ A Ruby script to snarf CopperEgg uptime and response time metrics, and provide s
 
 This utility:
 
-  - retrieves your detailed CopperEgg RevealUptime historical data for the past n days, where 'n' is 1, 3, 5 or 7.
+  - retrieves your detailed CopperEgg RevealUptime historical data for the past n days, where 'n' is 1 through 7.
 
   - formats the data and saves it as an Office Open XML Spreadsheet (.xlsx)
 

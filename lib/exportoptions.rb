@@ -25,27 +25,16 @@ class ExportOptions
     options.start_hour = options.start_min = options.start_sec = 0
     options.end_hour = options.end_min = options.end_sec = 0
 
-    options.interval = :last5d               # previous 5 days is the default
-    if now.month == 1
-      options.start_month = 12
-      options.end_month = 1
-      options.start_year = now.year-1
-      options.end_year = now.year
-    else
-      options.start_month = now.month-1
-      options.end_month = now.month
-      options.start_year = now.year
-      options.end_year = now.year
-    end
-    options.start_day = options.end_day = 1
-
+    options.interval = 'last7d'              # previous 7 days is the default
     options.metrics = nil
     options.outpath = "."
     options.apikey = ""
     options.verbose = false
-    options.sample_size_override = 0      # max is 86400
+    options.sample_size_override = 0        # max is 86400
     options.monitor = ""
-    options.shave = 0
+    options.shave = 7
+    options.raw = false
+    options.nan = false
 
     opts = OptionParser.new do |opts|
       opts.banner = usage_str
@@ -77,92 +66,23 @@ class ExportOptions
       end
 
       # Optional argument with keyword completion.
-      opts.on("-i", "--interval [INTERVAL]", String,[:ytd, :pcm, :mtd, :last1d, :last3d, :last5d, :last7d, :last30d, :last60d, :last90d],
-              "Select interval (ytd, pcm, mtd, last1d, last7d, last30d, last60d, last90d)",
-              " ytd (year-to-date), pcm (previous calendar month), lastXd (last x days)") do |i|
+      opts.on("-i", "--interval [INTERVAL]", String,['last1d', 'last2d', 'last3d', 'last4d', 'last5d', 'last6d', 'last7d'],
+              "Select interval (last1d, last2d, last3d, last4d, last5d, last6d, last7d)",
+              " lastXd (last x days, x is 1 to 7)") do |i|
         options.interval = i
-        if i == :ytd                      # leave hours / secs / mins at 0 for this time frame
-          options.start_year = now.year
-          options.start_month = 1
-          options.start_day = 1
-          options.end_year = now.year
-          options.end_month = now.month
-          options.end_day = now.day
-          if $verbose == true
-            puts "Retrieving year to date data"
-          end
-        elsif i == :pcm                    # leave hours / secs / mins at 0 for this time frame
-          if now.month == 1
-            options.start_month = 12
-            options.end_month = 1
-            options.start_year = now.year-1
-            options.end_year = now.year
-          else
-            options.start_month = now.month-1
-            options.end_month = now.month
-            options.start_year = now.year
-            options.end_year = now.year
-          end
-          options.start_day = options.end_day = 1
-          if $verbose == true
-            puts "Retrieving data from previous calendar month"
-          end
-        elsif i == :mtd
-          options.start_year = now.year
-          options.start_month = now.month
-          options.start_day = 1           # leave start hours, min and seconds at 0
-          options.end_month = now.month
-          options.end_day = now.day
-          options.end_hour = now.hour     # leave min and sec at 0
-          if $verbose == true
-            puts "Retrieving calendar month to date data"
-          end
-        elsif i == :last1d || i == :last3d || i == :last5d || i == :last7d || i == :last30d || i == :last60d || i == :last90d
-          case i
-            when :last1d
-              options.shave = 1
-            when :last3d
-              options.shave = 3
-            when :last5d
-              options.shave = 5
-            when :last7d
-              options.shave = 7
-            when :last30d
-              options.shave = 30
-            when :last60d
-              options.shave = 60
-            when :last90d
-              soptions.have = 90
-          end # if 'case i'
-          tstrt = Time.at(tnow - (86400 * options.shave)).utc  # subtract shave * secs per day
-          options.start_year  = tstrt.year
-          options.start_month = tstrt.month
-          options.start_day   = tstrt.day
-          options.start_hour  = tstrt.hour
-          options.start_min   = tstrt.min
-          options.start_sec   = tstrt.sec
-          options.end_year    = now.year
-          options.end_month   = now.month
-          options.end_day     = now.day
-          options.end_hour    = now.hour
-          options.end_min     = now.min
-          options.end_sec     = now.sec
-          if $verbose == true
-              if options.shave == 1
-                puts "Retrieving data from the last 24 hours\n"
-              else
-                puts "Retrieving data from the last "+options.shave.to_s+" days\n"
-              end
-          end
-        else
-          puts "\nUnecognized selection. Try using -h\n"
-          return nil
-        end
       end
       # Boolean switch.
       opts.on("-v", "--verbose", "Run verbosely") do
         options.verbose = true
         $verbose = true
+      end
+
+      opts.on("-r", "--raw", "No data filtering") do
+        options.raw = true
+      end
+
+      opts.on("-n", "--nan", "Use NaN for nil") do
+        options.nan = true
       end
 
       opts.separator ""
@@ -174,6 +94,7 @@ class ExportOptions
         exit
       end
     end
+
     if ARGV[0] == nil
       puts usage_str + "\n"
       return nil
@@ -185,6 +106,50 @@ class ExportOptions
       end
     end
     opts.parse!(args)
+    i = options.interval
+    puts "options.interval is "+options.interval.to_s+" \n"
+    case i
+      when 'last1d'
+        options.shave = 1
+      when 'last2d'
+        options.shave = 2
+      when 'last3d'
+        options.shave = 3
+      when 'last4d'
+        options.shave = 4
+      when 'last5d'
+        options.shave = 5
+      when 'last6d'
+        options.shave = 6
+      when 'last7d'
+        options.shave = 7
+      when 'last30d'
+        options.shave = 30
+      when 'last60d'
+        options.shave = 60
+      when 'last90d'
+        options.shave = 90
+    end # if 'case i'
+    tstrt = Time.at(tnow - (86400 * options.shave)).utc  # subtract shave * secs per day
+    options.start_year  = tstrt.year
+    options.start_month = tstrt.month
+    options.start_day   = tstrt.day
+    options.start_hour  = tstrt.hour
+    options.start_min   = tstrt.min
+    options.start_sec   = tstrt.sec
+    options.end_year    = now.year
+    options.end_month   = now.month
+    options.end_day     = now.day
+    options.end_hour    = now.hour
+    options.end_min     = now.min
+    options.end_sec     = now.sec
+    if $verbose == true
+        if options.shave == 1
+          puts "Retrieving data from the last 24 hours\n"
+        else
+          puts "Retrieving data from the last "+options.shave.to_s+" days\n"
+        end
+    end
     options
   end  # parse()
 end  # class ExportOptions

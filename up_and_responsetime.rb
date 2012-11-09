@@ -13,6 +13,7 @@ require 'json'
 require 'multi_json'
 require 'csv'
 require 'axlsx'
+require 'ethon'
 require './lib/exportoptions'
 require './lib/getsystems'
 require './lib/getprobes'
@@ -33,7 +34,7 @@ $totalrows = 0
 $days = 1
 $begin = 0
 $end = 0
-
+$runtime = 0
 
 
 def valid_json? json_
@@ -134,7 +135,7 @@ def probesamples_tocsv(_apikey, _id, _probename, _freq, _keys, ts, te, ss)
     return false
   end
 
-  # The timespan is split into 1 hour request, to get max resolution
+  # The timespan is split into 1 hour requests, to get max resolution
   secsperhour = 3600
   secsperday = 86400
 
@@ -183,6 +184,8 @@ def probesamples_tocsv(_apikey, _id, _probename, _freq, _keys, ts, te, ss)
                       }
   probe_stations = Array.new
   probe_stations = nil
+  first_sample_up = nil
+  first_sample_lat = nil
 
   p = Axlsx::Package.new
   wb = p.workbook
@@ -205,19 +208,17 @@ def probesamples_tocsv(_apikey, _id, _probename, _freq, _keys, ts, te, ss)
     mainarray[$totalrows] = Array.new
     row = mainarray[$totalrows]
     $totalrows = $totalrows + 1
+    ignored_rows = 0
+
 
     row = CSVHeaders.create(complex_syskeys[keystr],names)
-    row.concat(["Number Stations Reporting Down", "Date and Time, UTC"])
+    row.concat(["Number Stations Reporting Down"])
     #hdrstyle = [ header, header, header, header, header , header , header , header  ]
     sheet1.add_row row, :style => header
     style = Array.new
     style[0] = date
 
-    if ss == 0 && _freq == 15
-      incr = 15
-    else
-      incr = ss
-    end
+    incr = ss
 
     buckets = Array.new     # contains timestamps indexed from 0 to numentries - 1
     bucketoff = Array.new   # contains offsets indexed from 0 to numentries - 1
@@ -235,14 +236,11 @@ def probesamples_tocsv(_apikey, _id, _probename, _freq, _keys, ts, te, ss)
       end
 
       newhash = get1hrprobesamples($APIKEY,  _id.to_s, _probename.to_s, keystr, current_begints, current_endte, ss)
-      if newhash == nil
-        if $debug == true
-          puts "\n\nGet1hour returned nill!!!\n\n"
-        end
-      end
+
       inp_keyhash = newhash
       if probe_stations == nil && inp_keyhash != nil
         probe_stations = inp_keyhash.keys
+        $stationnumber = inp_keyhash.length
       end
 
       arrayctr = 0
@@ -256,50 +254,43 @@ def probesamples_tocsv(_apikey, _id, _probename, _freq, _keys, ts, te, ss)
         t_entry = Time.at(buckets[arrayctr].to_i).utc
         row[0] = t_entry.to_s
         skeys.each do |skey|
-          thisarray= single_latencies[skey]
-
-          if inp_keyhash == nil
-            samples = nil
-            tmparray = [100]
-            row.concat(tmparray)
-          else
-            samples = inp_keyhash[skey]
-            if samples == nil
-              tmparray = [100]
-              row.concat(tmparray)
-            else
-              val = samples[bucketoff[arrayctr].to_s]
-              tmparray = [""]
-              if val != nil
-                tmparray = [val]
+          tmparray = ["NaN"]
+          if inp_keyhash != nil
+            if inp_keyhash[skey] != nil
+              samples = inp_keyhash[skey]
+              if samples[bucketoff[arrayctr].to_s] != nil
+                tmparray = [samples[bucketoff[arrayctr].to_s]]
+                if first_sample_up == nil
+                  first_sample_up = t_entry
+                end
               end
-              row.concat(tmparray)
             end
           end  # of 'if inp_keyhash == nil'
+          row.concat(tmparray)
         end  # of 'skeys.each do'
 
         # now sum up the row
-        rowind = 1
-        rslt = 0                # 0 is up
-        havesomething = 0
+        rowind = 1                # row[0] is the time string
+        rslt = 0                  # 0 is up
+        havesomething = 0         # havesomething remains 0 if there is no data on the row
         while rowind <=row.length
-          if row[rowind]!= nil && row[rowind] != ""
-            havesomething = 1
-            if row[rowind] < 100       # FIXME ... debug ... trying < 100; was == 0
+          if row[rowind]!= nil && row[rowind] != "" && row[rowind] != "NaN"
+            havesomething = 1       # it must be >=0 and <=100
+            if row[rowind] < 100    # this station trying < 100; was == 0
               rslt=rslt+1
-             end
+            end
           end
           rowind = rowind+1
         end
         if havesomething == 0
-          rowsignore[allrow_index] = 1
-          rslt = allrows[allrow_index-1]
+          rowsignore[allrow_index] = 1      # array of all empty rows
+          ignored_rows = ignored_rows+1
+          #rslt = allrows[allrow_index-1]   # if there is no data here,
         else
           rowsignore[allrow_index] = 0
         end
-        tmp2array=[rslt]
-        allrows[allrow_index] = rslt
-        row.concat(tmp2array)
+        allrows[allrow_index] = rslt        # rslt will be 0 to number of stations
+        row.concat([rslt])
         allrow_index = allrow_index+1
         sheet1.add_row row      #, :style=> [nil, comma, comma, comma]
         arrayctr = arrayctr + 1
@@ -318,16 +309,16 @@ def probesamples_tocsv(_apikey, _id, _probename, _freq, _keys, ts, te, ss)
     rowind = ttime = tdtime = uptime = 0
     stuff = ""
 
-    #puts "Calculating Max Downtime. Number of samples is "+allrow_index.to_s+"\n"
     while rowind < allrow_index
-      if rowsignore[rowind] == 0 && allrows[rowind] > 0     # FIXME
+      if rowsignore[rowind] == 0 && allrows[rowind] == $stationnumber
         totaldowntime = totaldowntime + 1
         cur_contiguous = cur_contiguous+1
         if cur_contiguous >  max_contiguous
           max_contiguous = cur_contiguous
         end
-      elsif rowsignore[rowind] == 0 && allrows[rowind] == 0
-         cur_contiguous = 0
+      #elsif rowsignore[rowind] == 0 && allrows[rowind] == 0
+      else
+        cur_contiguous = 0
       end
       rowind  = rowind +1
     end
@@ -342,6 +333,7 @@ def probesamples_tocsv(_apikey, _id, _probename, _freq, _keys, ts, te, ss)
       stuff = sprintf("%4.2f",uptime.to_f.round(2))
     end
 
+=begin
     lstr = "A2:A"+($totalrows-1).to_s
     dstr = "H2:H"+($totalrows-1).to_s
     tstr = "Stations Reporting Down\n"+Time.at($begin).utc.to_s+" to "+Time.at($end).utc.to_s
@@ -353,10 +345,17 @@ def probesamples_tocsv(_apikey, _id, _probename, _freq, _keys, ts, te, ss)
       chart1.catAxis.gridlines = false
       chart1.catAxis.label_rotation = -45
     end
-
+=end
+    samples_analyzed = ($end - first_sample_up.to_i)/ss
     wb.add_worksheet(:name => "Uptime Summary") do |sheet2|
+      sheet2.add_row ["Uptime Summary for probe "+ _probename.to_s+" from "+Time.at($begin).utc.to_s+" to "+Time.at($end).utc.to_s]
+      sheet2.add_row ["Analysis was run at "+Time.at($runtime).utc.to_s]
+      sheet2.add_row ["First samples found in the interval at "+first_sample_up.to_s]
+      sheet2.add_row ["Total number of "+ss.to_s+" second samples analyzed", samples_analyzed.to_s]
+      sheet2.add_row ["Total number of samples with no data", ignored_rows.to_s]
+      sheet2.add_row ["","","",""]
       sheet2.add_row ["Metric", "In Hours", "In Minutes", "In Seconds"]
-      sheet2.add_row ["Length of period", (ttime/3600).to_s,  (ttime/60).to_s, ttime.to_s]
+      sheet2.add_row ["Length of time period analyzed", (ttime/3600).to_s,  (ttime/60).to_s, ttime.to_s]
       sheet2.add_row ["Total Downtime during this period", (tdtime/3600).round(3).to_s, (tdtime/60).round(3).to_s, tdtime.to_s ]
       sheet2.add_row ["Longest Time Down during this period", ((max_contiguous*$samplesize)/3600).to_s, ((max_contiguous*$samplesize)/60).to_s, ((max_contiguous*$samplesize)).to_s]
       sheet2.add_row ["Uptime percentage over this period", stuff.to_s]
@@ -392,11 +391,8 @@ def probesamples_tocsv(_apikey, _id, _probename, _freq, _keys, ts, te, ss)
     style = Array.new
     style[0] = date
 
-    if ss == 0
-      incr = 15
-    else
-      incr = ss
-    end
+    incr = ss
+
     buckets = Array.new     # contains timestamps indexed from 0 to numentries - 1
     bucketoff = Array.new   # contains offsets indexed from 0 to numentries - 1
     # Loop though the time span passed-in, in 1 hour segments
@@ -414,11 +410,7 @@ def probesamples_tocsv(_apikey, _id, _probename, _freq, _keys, ts, te, ss)
       end
 
       newhash = get1hrprobesamples($APIKEY,  _id.to_s, _probename.to_s, keystr, current_begints, current_endte, ss)
-      if newhash == nil
-        if $debug == true
-          puts "\n\nGet1hour returned nill!!!\n\n"
-        end
-      end
+
       inp_keyhash = newhash
       arrayctr = 0
       tmparray = Array.new
@@ -432,21 +424,16 @@ def probesamples_tocsv(_apikey, _id, _probename, _freq, _keys, ts, te, ss)
         row[0] = t_entry.to_s
         skeys.each do |skey|
           thisarray= single_latencies[skey]
-          if inp_keyhash == nil
-            samples = nil
-            tmparray = [0,0,0,0]
-            row.concat(tmparray)
-          else
-            samples = inp_keyhash[skey]
-            if samples == nil
-              tmparray = [0,0,0,0]
-              row.concat(tmparray)
-            else
-              val = samples[bucketoff[arrayctr].to_s]
-              tmparray = [0,0,0,0]
-              if val != nil
-                tmparray = val
-                if tmparray[3] >= 10000
+          tmparray = ["NaN","NaN","NaN","NaN"]
+          if inp_keyhash != nil
+            if inp_keyhash[skey] != nil
+              samples = inp_keyhash[skey]
+              if samples[bucketoff[arrayctr].to_s] != nil
+                if first_sample_lat == nil
+                  first_sample_lat = t_entry
+                end
+                tmparray = samples[bucketoff[arrayctr].to_s]
+                if tmparray[3] >= 9999
                   tmparray = [0,0,10000,10000]
 
                   tlatencyarray[B_10secandup] = tlatencyarray[B_10secandup]+1
@@ -504,13 +491,20 @@ def probesamples_tocsv(_apikey, _id, _probename, _freq, _keys, ts, te, ss)
     end  # of 'while current_begints < endte'
   end  # of sheet3
   wb.add_worksheet(:name => "Latency Summary") do |sheet4|
+    samples_analyzed = ($end - first_sample_lat.to_i)/ss
+    sheet4.add_row ["Latency Summary for probe "+ _probename.to_s+" from "+Time.at($begin).utc.to_s+" to "+Time.at($end).utc.to_s]
+    sheet4.add_row ["Analysis was run at "+Time.at($runtime).utc.to_s]
+    sheet4.add_row ["First samples found in the interval at "+first_sample_lat.to_s]
+    sheet4.add_row ["Total number of "+ss.to_s+" second samples analyzed", samples_analyzed.to_s]
+    #sheet4.add_row ["Total number of samples with no data", ignored_rows.to_s]
+    #sheet4.add_row ["Length of time period analyzed in hours", (ttime/3600).to_s]
+    sheet4.add_row ["","","",""]
     hrow = Array.new
-    hrow = ["X", "RT < 100ms","RT 100ms-150ms","RT 150ms-200ms","RT 200ms-500ms","RT 500ms-1000ms","RT 1sec-2sec","RT 2sec-3sec","RT 3sec-4sec","RT 4sec-5sec","RT 5sec-6sec","RT 6sec-10sec","RT > 10 sec"]
+    hrow = ["", "RT < 100ms","RT 100ms-150ms","RT 150ms-200ms","RT 200ms-500ms","RT 500ms-1000ms","RT 1sec-2sec","RT 2sec-3sec","RT 3sec-4sec","RT 4sec-5sec","RT 5sec-6sec","RT 6sec-10sec","RT > 10 sec"]
     sheet4.add_row hrow
 
     harray = Array.new
     hctr = 0
-    #alphstations.each do |station|
     probe_stations.each do |station|
       harray[hctr] = Array.new
       ha = harray[hctr]
@@ -533,37 +527,35 @@ def probesamples_tocsv(_apikey, _id, _probename, _freq, _keys, ts, te, ss)
         ha.concat([v])
     end
     sheet4.add_row ha
-    if $verbose == true
-      puts "number of stations is "+probe_stations.length.to_s+"\n"
-    end
-    sheet4.add_chart(Axlsx::Bar3DChart, :start_at => "B11", :end_at => "K45", :title => "Individual Stations\nDistribution of Response Times" ) do |chart2|
+
+    sheet4.add_chart(Axlsx::Bar3DChart, :start_at => "B14", :end_at => "K48", :title => "Individual Stations\nDistribution of Response Times" ) do |chart2|
       if probe_stations.length == 1
-        chart2.add_series :data => sheet4["B2:M2"], :labels => sheet4["B1:M1"], :title => sheet4["A2"]
+        chart2.add_series :data => sheet4["B7:M7"], :labels => sheet4["B6:M6"], :title => sheet4["A7"]
       elsif probe_stations.length == 2
-        chart2.add_series :data => sheet4["B2:M2"], :labels => sheet4["B1:M1"], :title => sheet4["A2"]
-        chart2.add_series :data => sheet4["B3:M3"], :labels => sheet4["B1:M1"], :title => sheet4["A3"]
+        chart2.add_series :data => sheet4["B7:M7"], :labels => sheet4["B6:M6"], :title => sheet4["A7"]
+        chart2.add_series :data => sheet4["B8:M8"], :labels => sheet4["B6:M6"], :title => sheet4["A8"]
       elsif probe_stations.length == 3
-        chart2.add_series :data => sheet4["B2:M2"], :labels => sheet4["B1:M1"], :title => sheet4["A2"]
-        chart2.add_series :data => sheet4["B3:M3"], :labels => sheet4["B1:M1"], :title => sheet4["A3"]
-        chart2.add_series :data => sheet4["B4:M4"], :labels => sheet4["B1:M1"], :title => sheet4["A4"]
+        chart2.add_series :data => sheet4["B7:M7"], :labels => sheet4["B6:M6"], :title => sheet4["A7"]
+        chart2.add_series :data => sheet4["B8:M8"], :labels => sheet4["B6:M6"], :title => sheet4["A8"]
+        chart2.add_series :data => sheet4["B9:M9"], :labels => sheet4["B6:M6"], :title => sheet4["A9"]
       elsif probe_stations.length == 4
-        chart2.add_series :data => sheet4["B2:M2"], :labels => sheet4["B1:M1"], :title => sheet4["A2"]
-        chart2.add_series :data => sheet4["B3:M3"], :labels => sheet4["B1:M1"], :title => sheet4["A3"]
-        chart2.add_series :data => sheet4["B4:M4"], :labels => sheet4["B1:M1"], :title => sheet4["A4"]
-        chart2.add_series :data => sheet4["B5:M5"], :labels => sheet4["B1:M1"], :title => sheet4["A5"]
+        chart2.add_series :data => sheet4["B7:M7"], :labels => sheet4["B6:M6"], :title => sheet4["A7"]
+        chart2.add_series :data => sheet4["B8:M8"], :labels => sheet4["B6:M6"], :title => sheet4["A8"]
+        chart2.add_series :data => sheet4["B9:M9"], :labels => sheet4["B6:M6"], :title => sheet4["A9"]
+        chart2.add_series :data => sheet4["B10:M10"], :labels => sheet4["B6:M6"], :title => sheet4["A10"]
       elsif probe_stations.length == 5
-        chart2.add_series :data => sheet4["B2:M2"], :labels => sheet4["B1:M1"], :title => sheet4["A2"]
-        chart2.add_series :data => sheet4["B3:M3"], :labels => sheet4["B1:M1"], :title => sheet4["A3"]
-        chart2.add_series :data => sheet4["B4:M4"], :labels => sheet4["B1:M1"], :title => sheet4["A4"]
-        chart2.add_series :data => sheet4["B5:M5"], :labels => sheet4["B1:M1"], :title => sheet4["A5"]
-        chart2.add_series :data => sheet4["B6:M6"], :labels => sheet4["B1:M1"], :title => sheet4["A6"]
+        chart2.add_series :data => sheet4["B7:M7"], :labels => sheet4["B6:M6"], :title => sheet4["A7"]
+        chart2.add_series :data => sheet4["B8:M8"], :labels => sheet4["B6:M6"], :title => sheet4["A8"]
+        chart2.add_series :data => sheet4["B9:M9"], :labels => sheet4["B6:M6"], :title => sheet4["A9"]
+        chart2.add_series :data => sheet4["B10:M10"], :labels => sheet4["B6:M6"], :title => sheet4["A10"]
+        chart2.add_series :data => sheet4["B11:M11"], :labels => sheet4["B6:M6"], :title => sheet4["A11"]
       else
-        chart2.add_series :data => sheet4["B2:M2"], :labels => sheet4["B1:M1"], :title => sheet4["A2"]
-        chart2.add_series :data => sheet4["B3:M3"], :labels => sheet4["B1:M1"], :title => sheet4["A3"]
-        chart2.add_series :data => sheet4["B4:M4"], :labels => sheet4["B1:M1"], :title => sheet4["A4"]
-        chart2.add_series :data => sheet4["B5:M5"], :labels => sheet4["B1:M1"], :title => sheet4["A5"]
-        chart2.add_series :data => sheet4["B6:M6"], :labels => sheet4["B1:M1"], :title => sheet4["A6"]
-        chart2.add_series :data => sheet4["B7:M7"], :labels => sheet4["B1:M1"], :title => sheet4["A7"]
+        chart2.add_series :data => sheet4["B7:M7"], :labels => sheet4["B6:M6"], :title => sheet4["A7"]
+        chart2.add_series :data => sheet4["B8:M8"], :labels => sheet4["B6:M6"], :title => sheet4["A8"]
+        chart2.add_series :data => sheet4["B9:M9"], :labels => sheet4["B6:M6"], :title => sheet4["A9"]
+        chart2.add_series :data => sheet4["B10:M10"], :labels => sheet4["B6:M6"], :title => sheet4["A10"]
+        chart2.add_series :data => sheet4["B11:M11"], :labels => sheet4["B6:M6"], :title => sheet4["A11"]
+        chart2.add_series :data => sheet4["B12:M12"], :labels => sheet4["B6:M6"], :title => sheet4["A12"]
       end
       chart2.bar_dir = :col
       chart2.grouping = :clustered
@@ -578,11 +570,11 @@ def probesamples_tocsv(_apikey, _id, _probename, _freq, _keys, ts, te, ss)
       chart2.catAxis.label_rotation = -45
     end
 
-    dstr = "B"+(probe_stations.length+2).to_s+":M"+(probe_stations.length+2).to_s
-    tstr = "A"+(probe_stations.length+2).to_s
+    dstr = "B"+(probe_stations.length+7).to_s+":M"+(probe_stations.length+7).to_s
+    tstr = "A"+(probe_stations.length+7).to_s
 
-    sheet4.add_chart(Axlsx::Bar3DChart, :start_at => "B47", :end_at => "K81", :title => "All Stations in Aggregate\nDistribution of Response Times" ) do |chart3|
-      chart3.add_series :data => sheet4[dstr], :labels => sheet4["B1:M1"], :title => sheet4[tstr], :colors => ['FF0000', '00FF00', '0000FF', '000000']
+    sheet4.add_chart(Axlsx::Bar3DChart, :start_at => "B50", :end_at => "K84", :title => "All Stations in Aggregate\nDistribution of Response Times" ) do |chart3|
+      chart3.add_series :data => sheet4[dstr], :labels => sheet4["B6:M6"], :title => sheet4[tstr], :colors => ['FF0000', '00FF00', '0000FF', '000000']
       chart3.bar_dir = :col
       chart3.grouping = :clustered
       chart3.valAxis.title = "Number of Samples"
@@ -616,7 +608,6 @@ if options != nil
   tstart = Time.gm(options.start_year,options.start_month,options.start_day,options.start_hour,options.start_min,options.start_sec)
   tend = Time.gm(options.end_year,options.end_month,options.end_day,options.end_hour,options.end_min,options.end_sec)
 
-
   if tstart.utc? == false
     tstart = tstart.utc
   end
@@ -629,11 +620,12 @@ if options != nil
 
   $begin = ts
   $end = te
+  $runtime = tr.to_i
+
 
   ss = options.sample_size_override
 
   $days = options.shave
-
   $monitorthis = options.monitor
   allprobes = Array.new
   allprobes = GetProbes.all($APIKEY)
@@ -671,17 +663,25 @@ if options != nil
     while ctr < num_probes
       this_probe = allprobes[ctr]
       _freq = this_probe["frequency"]
-      if ss == 0
-        if options.shave > 5
+
+      if options.shave > 5
+        ss = 60             # regardless of override
+      else
+        if _freq == 60
           ss = 60
-        elsif options.shave <=5 && _freq == 15
-          ss = 15
-          $dplaces = 3
+        elsif _freq == 15
+          if ss != 60 && ss != 15
+              ss = 15
+          end
         end
       end
+      if _freq == 15
+         $dplaces = 3
+      end
+
       $samplesize = ss
 
-      probesamples_tocsv($APIKEY, this_probe["id"].to_s, this_probe["probe_desc"].to_s , this_probe["frequency"],"s_l,s_u", ts, te, ss)
+      probesamples_tocsv($APIKEY, this_probe["id"].to_s, this_probe["probe_desc"].to_s , this_probe["frequency"],"s_u", ts, te, ss)
       puts "\nFinished Probe "+this_probe["probe_desc"].to_s+"\n"
       ctr = ctr + 1
     end
