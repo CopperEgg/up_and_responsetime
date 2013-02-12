@@ -138,6 +138,7 @@ def probesamples_tocsv(_apikey, _id, _probename, _freq, _keys, ts, te, ss)
   # The timespan is split into 1 hour requests, to get max resolution
   secsperhour = 3600
   secsperday = 86400
+  secsperrequest = (ss < 2 ? secsperhour : secsperday)
 
   tn = Time.now
   tn = tn.utc
@@ -156,7 +157,7 @@ def probesamples_tocsv(_apikey, _id, _probename, _freq, _keys, ts, te, ss)
   begints = ts
   current_begints = ts
   endte = te
-  current_endte = current_begints + secsperhour
+  current_endte = current_begints + secsperrequest
 
   if current_endte > endte
     current_endte = endte     # this will be the final iteration
@@ -296,7 +297,7 @@ def probesamples_tocsv(_apikey, _id, _probename, _freq, _keys, ts, te, ss)
         arrayctr = arrayctr + 1
       end  # of 'while arrayctr < bucketcnt'
       current_begints = current_endte
-      current_endte = current_begints + secsperhour
+      current_endte = current_begints + secsperrequest
       if inp_keyhash != nil
         inp_keyhash.clear
       end
@@ -368,7 +369,7 @@ def probesamples_tocsv(_apikey, _id, _probename, _freq, _keys, ts, te, ss)
   begints = ts
   current_begints = ts
   endte = te
-  current_endte = current_begints + secsperhour
+  current_endte = current_begints + secsperrequest
 
   if current_endte > endte
     current_endte = endte     # this will be the final iteration
@@ -481,7 +482,7 @@ def probesamples_tocsv(_apikey, _id, _probename, _freq, _keys, ts, te, ss)
         arrayctr = arrayctr + 1
       end  # of 'while arrayctr < bucketcnt'
       current_begints = current_endte
-      current_endte = current_begints + secsperhour
+      current_endte = current_begints + secsperrequest
       if inp_keyhash != nil
         inp_keyhash.clear
       end
@@ -624,6 +625,19 @@ if options != nil
 
 
   ss = options.sample_size_override
+  if !ss
+    if options.shave > 30
+      ss = 86400
+    elsif options.shave > 15
+      ss = 21600
+    elsif options.shave > 7
+      ss = 3600
+    elsif options.shave > 2
+      ss = 900
+    else
+      ss = 300
+    end
+  end
 
   $days = options.shave
   $monitorthis = options.monitor
@@ -664,17 +678,6 @@ if options != nil
       this_probe = allprobes[ctr]
       _freq = this_probe["frequency"]
 
-      if options.shave > 5
-        ss = 60             # regardless of override
-      else
-        if _freq == 60
-          ss = 60
-        elsif _freq == 15
-          if ss != 60 && ss != 15
-              ss = 15
-          end
-        end
-      end
       if _freq == 15
          $dplaces = 3
       end

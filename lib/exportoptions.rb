@@ -30,7 +30,7 @@ class ExportOptions
     options.outpath = "."
     options.apikey = ""
     options.verbose = false
-    options.sample_size_override = 0        # max is 86400
+    options.sample_size_override = nil        # max is 86400
     options.monitor = ""
     options.shave = 7
     options.raw = false
@@ -66,9 +66,8 @@ class ExportOptions
       end
 
       # Optional argument with keyword completion.
-      opts.on("-i", "--interval [INTERVAL]", String,['last1d', 'last2d', 'last3d', 'last4d', 'last5d', 'last6d', 'last7d'],
-              "Select interval (last1d, last2d, last3d, last4d, last5d, last6d, last7d)",
-              " lastXd (last x days, x is 1 to 7)") do |i|
+      opts.on("-i", "--interval [INTERVAL]", String,
+              "Select interval (last1d, last2d, last3d, last4d, last5d, last6d, lastxd)") do |i|
         options.interval = i
       end
       # Boolean switch.
@@ -108,28 +107,8 @@ class ExportOptions
     opts.parse!(args)
     i = options.interval
     puts "options.interval is "+options.interval.to_s+" \n"
-    case i
-      when 'last1d'
-        options.shave = 1
-      when 'last2d'
-        options.shave = 2
-      when 'last3d'
-        options.shave = 3
-      when 'last4d'
-        options.shave = 4
-      when 'last5d'
-        options.shave = 5
-      when 'last6d'
-        options.shave = 6
-      when 'last7d'
-        options.shave = 7
-      when 'last30d'
-        options.shave = 30
-      when 'last60d'
-        options.shave = 60
-      when 'last90d'
-        options.shave = 90
-    end # if 'case i'
+    shave = i[/^last([0-9]+)d$/,1].to_i
+    options.shave = shave if shave > 0
     tstrt = Time.at(tnow - (86400 * options.shave)).utc  # subtract shave * secs per day
     options.start_year  = tstrt.year
     options.start_month = tstrt.month
