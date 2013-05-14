@@ -163,9 +163,9 @@ def probesamples_tocsv(_apikey, _id, _probename, _freq, _keys, ts, te, ss)
     current_endte = endte     # this will be the final iteration
   end
 
-  fname = $output_path.to_s+"/"+ _probename.to_s+"_uptime_and_latency.xlsx"
+  fname = "#{$output_path}/#{_probename}_uptime_and_latency.xlsx"
   if $verbose == true
-    puts "Writing to "+fname.to_s+"\n\n"
+    puts "Writing to #{fname}\n\n"
   end
 
   inp_keyhash = Hash.new
@@ -184,7 +184,6 @@ def probesamples_tocsv(_apikey, _id, _probename, _freq, _keys, ts, te, ss)
                       "tok" => [0,0,0,0,0,0,0,0,0,0,0,0]
                       }
   probe_stations = Array.new
-  probe_stations = nil
   first_sample_up = nil
   first_sample_lat = nil
 
@@ -239,8 +238,8 @@ def probesamples_tocsv(_apikey, _id, _probename, _freq, _keys, ts, te, ss)
       newhash = get1hrprobesamples($APIKEY,  _id.to_s, _probename.to_s, keystr, current_begints, current_endte, ss)
 
       inp_keyhash = newhash
-      if probe_stations == nil && inp_keyhash != nil
-        probe_stations = inp_keyhash.keys
+      if inp_keyhash != nil
+        probe_stations = probe_stations | inp_keyhash.keys
         $stationnumber = inp_keyhash.length
       end
 
@@ -506,6 +505,10 @@ def probesamples_tocsv(_apikey, _id, _probename, _freq, _keys, ts, te, ss)
 
     harray = Array.new
     hctr = 0
+    if probe_stations.nil?
+        puts "INFO: no data for #{_probename}. Skipping."
+        next
+    end
     probe_stations.each do |station|
       harray[hctr] = Array.new
       ha = harray[hctr]
@@ -530,33 +533,12 @@ def probesamples_tocsv(_apikey, _id, _probename, _freq, _keys, ts, te, ss)
     sheet4.add_row ha
 
     sheet4.add_chart(Axlsx::Bar3DChart, :start_at => "B14", :end_at => "K48", :title => "Individual Stations\nDistribution of Response Times" ) do |chart2|
-      if probe_stations.length == 1
-        chart2.add_series :data => sheet4["B7:M7"], :labels => sheet4["B6:M6"], :title => sheet4["A7"]
-      elsif probe_stations.length == 2
-        chart2.add_series :data => sheet4["B7:M7"], :labels => sheet4["B6:M6"], :title => sheet4["A7"]
-        chart2.add_series :data => sheet4["B8:M8"], :labels => sheet4["B6:M6"], :title => sheet4["A8"]
-      elsif probe_stations.length == 3
-        chart2.add_series :data => sheet4["B7:M7"], :labels => sheet4["B6:M6"], :title => sheet4["A7"]
-        chart2.add_series :data => sheet4["B8:M8"], :labels => sheet4["B6:M6"], :title => sheet4["A8"]
-        chart2.add_series :data => sheet4["B9:M9"], :labels => sheet4["B6:M6"], :title => sheet4["A9"]
-      elsif probe_stations.length == 4
-        chart2.add_series :data => sheet4["B7:M7"], :labels => sheet4["B6:M6"], :title => sheet4["A7"]
-        chart2.add_series :data => sheet4["B8:M8"], :labels => sheet4["B6:M6"], :title => sheet4["A8"]
-        chart2.add_series :data => sheet4["B9:M9"], :labels => sheet4["B6:M6"], :title => sheet4["A9"]
-        chart2.add_series :data => sheet4["B10:M10"], :labels => sheet4["B6:M6"], :title => sheet4["A10"]
-      elsif probe_stations.length == 5
-        chart2.add_series :data => sheet4["B7:M7"], :labels => sheet4["B6:M6"], :title => sheet4["A7"]
-        chart2.add_series :data => sheet4["B8:M8"], :labels => sheet4["B6:M6"], :title => sheet4["A8"]
-        chart2.add_series :data => sheet4["B9:M9"], :labels => sheet4["B6:M6"], :title => sheet4["A9"]
-        chart2.add_series :data => sheet4["B10:M10"], :labels => sheet4["B6:M6"], :title => sheet4["A10"]
-        chart2.add_series :data => sheet4["B11:M11"], :labels => sheet4["B6:M6"], :title => sheet4["A11"]
+      if probe_stations && probe_stations.length
+        probe_stations.length.times do |i|
+          chart2.add_series :data => sheet4["B#{i+7}:M#{i+7}"], :labels => sheet4["B6:M6"], :title => sheet4["A#{i+7}"]
+        end
       else
-        chart2.add_series :data => sheet4["B7:M7"], :labels => sheet4["B6:M6"], :title => sheet4["A7"]
-        chart2.add_series :data => sheet4["B8:M8"], :labels => sheet4["B6:M6"], :title => sheet4["A8"]
-        chart2.add_series :data => sheet4["B9:M9"], :labels => sheet4["B6:M6"], :title => sheet4["A9"]
-        chart2.add_series :data => sheet4["B10:M10"], :labels => sheet4["B6:M6"], :title => sheet4["A10"]
-        chart2.add_series :data => sheet4["B11:M11"], :labels => sheet4["B6:M6"], :title => sheet4["A11"]
-        chart2.add_series :data => sheet4["B12:M12"], :labels => sheet4["B6:M6"], :title => sheet4["A12"]
+        puts "No probe_stations.  skipping chart"
       end
       chart2.bar_dir = :col
       chart2.grouping = :clustered
@@ -571,8 +553,8 @@ def probesamples_tocsv(_apikey, _id, _probename, _freq, _keys, ts, te, ss)
       chart2.catAxis.label_rotation = -45
     end
 
-    dstr = "B"+(probe_stations.length+7).to_s+":M"+(probe_stations.length+7).to_s
-    tstr = "A"+(probe_stations.length+7).to_s
+    dstr = "B#{probe_stations.length+7}:M#{probe_stations.length+7}"
+    tstr = "A#{probe_stations.length+7}"
 
     sheet4.add_chart(Axlsx::Bar3DChart, :start_at => "B50", :end_at => "K84", :title => "All Stations in Aggregate\nDistribution of Response Times" ) do |chart3|
       chart3.add_series :data => sheet4[dstr], :labels => sheet4["B6:M6"], :title => sheet4[tstr], :colors => ['FF0000', '00FF00', '0000FF', '000000']

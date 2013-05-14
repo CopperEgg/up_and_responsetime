@@ -13,8 +13,7 @@ class GetProbes
   def self.all(apikey)
     begin
       url = "https://#{apikey}:U@api.copperegg.com/v2/revealuptime/probes.json"
-      #puts "url = #{url}"
-      easy = Ethon::Easy.new(url: url, followlocation: true, verbose: false, ssl_verifypeer: 0, headers: {Accept: "json"}, timeout: 10000)
+      easy = Ethon::Easy.new(url: url, followlocation: true, verbose: false, ssl_verifyhost: 0, ssl_verifypeer: false, headers: {Accept: "json"}, timeout: 10000)
       easy.prepare
       easy.perform
 
@@ -35,7 +34,7 @@ class GetProbes
             return nil
           end
         else
-          puts "\nGetProbes: HTTP code #{easy.response_code} returned. Aborting ...\n"
+          puts "\nGetProbes: HTTP code #{easy.response_code}, curl code #{easy.return_code} returned. Aborting ...\n"
           return nil
       end
     rescue Exception => e

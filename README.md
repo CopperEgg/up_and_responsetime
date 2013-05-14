@@ -45,6 +45,14 @@ All development and testing to date has been done with ruby-1.9.3-p194 and Typho
 git clone git@github.com:sjohnsoncopperegg/up_and_responsetime.git
 ```
 
+###On ubuntu, you may need to install these packages
+```ruby
+apt-get install ruby ruby-bundler
+apt-get install build-essential
+apt-get install libxml2-dev
+apt-get install libxslt1-dev
+```
+
 ###Run the Bundler
 
 ```ruby

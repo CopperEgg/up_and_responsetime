@@ -46,11 +46,7 @@ def get1hrprobesamples(_apikey, _id, _probename, _keys, ts, te, ss)
       print tmpurl+"\n"
     end
     while retries > 0
-      if $tmpdebug == true
-        easy = Ethon::Easy.new(url: tmpurl, followlocation: true, forbid_reuse: true, verbose: true, ssl_verifypeer: 0, headers: {Accept: "json"}, timeout: 10000)
-      else
-        easy = Ethon::Easy.new(url: tmpurl, followlocation: true, forbid_reuse: true, verbose: false, ssl_verifypeer: 0, headers: {Accept: "json"}, timeout: 10000)
-      end
+      easy = Ethon::Easy.new(url: tmpurl, followlocation: true, forbid_reuse: true, verbose: $tmpdebug, ssl_verifyhost: 0, ssl_verifypeer: false, headers: {Accept: "json"}, timeout: 10000)
       easy.prepare
       easy.perform
       if easy.response_code == 200
@@ -100,7 +96,7 @@ def get1hrprobesamples(_apikey, _id, _probename, _keys, ts, te, ss)
         oneprobe = probedata[0]
 
         if (oneprobe["_ts"] == nil) || (oneprobe["_bs"] == nil)
-          if $debug == true
+          if $debug || $tmpdebug
             puts "_ts or _bs was nil.\n"
           end
           return nil
@@ -116,6 +112,8 @@ def get1hrprobesamples(_apikey, _id, _probename, _keys, ts, te, ss)
 
           inp_keyhash = Hash.new      # one of these is pulled from the oneprobe hash, and processed separately
           inp_keyhash = oneprobe[keystr]
+          puts "\n\ninp_keyhash = #{inp_keyhash.inspect}\n" if $debug
+          puts "\n\noneprobe = #{oneprobe.inspect}\n" if $debug
           return inp_keyhash
 
         end  # of 'if (oneprobe["_ts"] == nil) || (oneprobe["_bs"] == nil)'

@@ -12,7 +12,7 @@ require 'typhoeus'
 class GetSystems
   def self.all(apikey)
     begin
-      easy = Ethon::Easy.new(url: "https://"+apikey.to_s+":U@api.copperegg.com/v2/revealcloud/systems.json", followlocation: true, verbose: false, ssl_verifypeer: 0, headers: {Accept: "json"}, timeout: 10000)
+      easy = Ethon::Easy.new(url: "https://"+apikey.to_s+":U@api.copperegg.com/v2/revealcloud/systems.json", followlocation: true, verbose: false, ssl_verifyhost: 0, ssl_verifypeer: false, headers: {Accept: "json"}, timeout: 10000)
       easy.prepare
       easy.perform
 

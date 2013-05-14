@@ -99,7 +99,7 @@ class ExportOptions
       return nil
     else
       $APIKEY = ARGV[0]
-      if $APIKEY == "" || $APIKEY.length != 16
+      if $APIKEY.length < 9
         puts usage_str + "\n"
         return nil
       end
