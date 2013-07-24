@@ -42,7 +42,7 @@ All development and testing to date has been done with ruby-1.9.3-p194 and Typho
 ###Clone this repository.
 
 ```ruby
-git clone git@github.com:sjohnsoncopperegg/up_and_responsetime.git
+git clone git@github.com:CopperEgg/up_and_responsetime.git
 ```
 
 ###On ubuntu, you may need to install these packages
