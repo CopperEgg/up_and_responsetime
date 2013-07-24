@@ -121,7 +121,7 @@ ruby up_and_responsetime.rb '1234567890123456' -o 'probedata-20121001' -s 60
 Specify the interval over which to export data. The default (no option specified) is to export the data from the previous 5 days. To specify exporting and analyzing data from the previous 5 days, use the '-i' option:
 
 ```ruby
-ruby up_and_responsetime.rb '1234567890123456' -o 'probedata-20121001' -i 'last1d'
+ruby up_and_responsetime.rb '1234567890123456' -o 'probedata-20121001' -i 'last5d'
 ```
 
 ### Verbosity
