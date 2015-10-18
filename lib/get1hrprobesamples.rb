@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
-# Copyright 2012 CopperEgg Corporation.  All rights reserved.
+# Copyright 2012 IDERA.  All rights reserved.
 #
-# get1hrprobesamples.rb is a utility to retrieve 1 hour of hires probe data from CopperEgg.
+# get1hrprobesamples.rb is a utility to retrieve 1 hour of hires probe data from Uptime Cloud Monitor.
 #
 #
 #encoding: utf-8

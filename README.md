@@ -1,13 +1,13 @@
 up_and_reponsetime
 ===================
 
-A Ruby script to snarf CopperEgg uptime and response time metrics, and provide some useful analytics.
+A Ruby script to snarf Uptime Cloud Monitor uptime and response time metrics, and provide some useful analytics.
 
 ###Synopsis
 
 This utility:
 
-  - retrieves your detailed CopperEgg RevealUptime historical data for the past n days, where 'n' is 1 through 7.
+  - retrieves your detailed Uptime Cloud Monitor RevealUptime historical data for the past n days, where 'n' is 1 through 7.
 
   - formats the data and saves it as an Office Open XML Spreadsheet (.xlsx)
 
@@ -25,14 +25,14 @@ In other words, up_and_responsetime gives you a simple, clear and accurate pictu
 
 This ruby script and associated library scripts are based on :
 * ruby-1.9.3
-* The CopperEgg API
+* The Uptime Cloud Monitor API
 * Typhoeus, which runs HTTP requests in parallel while cleanly encapsulating libcurl handling logic.
 * Typhoeus/ethon, a very simple libcurl wrapper.
 * Axlsx, an Office Open XML Spreadsheet generator for the Ruby programming.
 
 All development and testing to date has been done with ruby-1.9.3-p194 and Typhoeus (0.5.0.rc).
 
-* [CopperEgg API](http://dev.copperegg.com/)
+* [Uptime Cloud Monitor API](http://dev.copperegg.com/)
 * [typhoeus](https://github.com/typhoeus/typhoeus)
 * [typhoeus/ethon](https://github.com/typhoeus/ethon)
 * [axlsx](https://github.com/randym/axlsx)
@@ -64,7 +64,7 @@ bundle install
 ```ruby
 ruby up_and_responsetime.rb APIKEY [options]
 ```
-Substitute APIKEY with your CopperEgg User API key. Find it as follows:
+Substitute APIKEY with your Uptime Cloud Monitor User API key. Find it as follows:
 Settings tab -> Personal Settings -> User API Access
 
 Your command line will appear as follows:
@@ -138,7 +138,7 @@ One .xlsx file is created for each probe for each probe monitored during the tim
 
 (The MIT License)
 
-Copyright © 2012 [CopperEgg Corporation](http://copperegg.com)
+Copyright © 2012 [IDERA](http://idera.com)
 
 Permission is hereby granted, free of charge, to any person obtaining a
 copy of this software and associated documentation files (the "Software"),
