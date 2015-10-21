@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
-# Copyright 2012 CopperEgg Corporation.  All rights reserved.
+# Copyright 2012 IDERA.  All rights reserved.
 #
-# getprobes.rb contains classes to retrieve all probe information for a CopperEgg site.
+# getprobes.rb contains classes to retrieve all probe information for a Uptime Cloud Monitor site.
 #
 #
 #encoding: utf-8
